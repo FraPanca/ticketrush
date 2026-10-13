@@ -1,0 +1,29 @@
+# segreti e configurazione locale
+.env
+
+# Node
+node_modules/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# .NET
+bin/
+obj/
+
+# Go
+*.test
+*.out
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# OS / editor
+.DS_Store
+.idea/
