@@ -1,0 +1,84 @@
+name: ticketrush
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    command: ["--wiredTigerCacheSizeGB", "0.5"] # limite cache
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      # Bind mount sull'HDD esterno: directory assegnate a UID 999 in fase di setup del disco.
+      - type: bind
+        source: ${DATA_DIR:?DATA_DIR non definita in .env}/mongodb
+        target: /data/db
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    # Grace period generoso: deve poter chiudere in modo pulito su SIGTERM, per evitare rischi di corruzione dati sull'HDD.
+    stop_grace_period: 30s
+    networks: [catalog-net, order-inventory-net, notification-net, monitoring-net]
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - type: bind
+        source: ${DATA_DIR:?DATA_DIR non definita in .env}/redis
+        target: /data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    stop_grace_period: 15s
+    networks: [catalog-net, monitoring-net]
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - type: bind
+        source: ${DATA_DIR:?DATA_DIR non definita in .env}/rabbitmq
+        target: /var/lib/rabbitmq
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [notification-net, monitoring-net]
+
+networks:
+  catalog-net:
+    name: ticketrush-catalog
+  order-inventory-net:
+    name: ticketrush-order
+  notification-net:
+    name: ticketrush-notification
+  monitoring-net:
+    name: ticketrush-monitoring
